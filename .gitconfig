@@ -1,0 +1,14 @@
+[core]
+    editor = emacs
+    excludesFile = ~/.gitignore_global
+    splitIndex = true
+
+[pull]
+    rebase = true
+
+[user]
+    name = Connor Worley
+    email = connorbworley@gmail.com
+
+[blame]
+    showEmail = true

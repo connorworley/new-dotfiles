@@ -1,0 +1,5 @@
+# just python for now
+*.pyc
+__pycache__/
+.\#*
+\#*\#

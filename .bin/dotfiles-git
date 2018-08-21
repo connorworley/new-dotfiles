@@ -1,0 +1,21 @@
+#!/usr/bin/env fish
+
+if test (uname) = 'Darwin'
+    set_color brred
+    echo 'Running on macOS! Make sure coreutils and findutils are installed via brew'
+    set_color normal
+
+    function readlink
+        command greadlink $argv
+    end
+    function find
+        command gfind $argv
+    end
+end
+
+function repo_path
+    # we live in .bin relative to the repo root, so go up a dir
+    echo (realpath (dirname (readlink -f (status -f)))/..)
+end
+
+command git --git-dir=(repo_path)/.git --work-tree=(repo_path) $argv

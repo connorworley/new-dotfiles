@@ -1,0 +1,78 @@
+#!/usr/bin/env fish
+
+if test (uname) = 'Darwin'
+    set_color brred
+    echo 'Running on macOS! Make sure coreutils and findutils are installed via brew'
+    set_color normal
+    
+    function readlink
+	command greadlink $argv
+    end
+    function find
+	command gfind $argv
+    end
+end
+
+
+function repo_path
+    # we live in .bin relative to the repo root, so go up a dir
+    echo (realpath (dirname (readlink -f (status -f)))/..)
+end
+
+function update_git
+    echo "Updating git..."
+    git --git-dir=(repo_path)/.git --work-tree=(repo_path) pull --rebase origin master
+end
+
+function install_symlinks
+    echo "Installing symlinks..."
+    for target in (find (repo_path) -type f -not -path (repo_path)'/.git/*' -printf '%P\n')
+        set -l target_path (repo_path)"/$target"
+        set -l install_path "$HOME/$target"
+        set -l install_dir (dirname "$install_path")
+
+        if test -f "$install_dir"
+            echo "We want to create a directory at $install_dir but found a file there. Aborting."
+            return 1
+        end
+
+        mkdir -pv "$install_dir"
+
+        if test -e "$install_path"
+            if test (readlink -f "$install_path") != "$target_path"
+                # a file we want to install already exists and wasn't installed by us
+                if git diff "$install_path" "$target_path" > /dev/null
+                    # the file contents match, so we can go ahead and overwrite
+                    rm "$install_path"
+                    ln -s "$target_path" "$install_path"
+                else
+                    echo "There is a conflict with $install_path."
+                    # repeatedly using read from a script is broken on fish 2.6.0, so we have to use bash
+                    set -l choice (bash -c 'read -p "Would you like to (i) ignore it, (m) merge it into the dotfiles repo, or (o) overwrite it? [default: m] " input; echo "$input"')
+                    switch "$choice"
+                        case 'i'
+                            continue
+                        case 'o'
+                            rm "$install_path"
+                            ln -s "$target_path" "$install_path"
+                        case '*'
+                            git merge-file "$target_path" /dev/null "$install_path"
+                            if eval "$EDITOR" "$target_path"
+                                git --git-dir=(repo_path)/.git --work-tree=(repo_path) commit -i "$target" -m "Merge $target_path into dotfiles repo"
+                                rm "$install_path"
+                                ln -s "$target_path" "$install_path"
+                            else
+                                echo "$EDITOR exited abnormally. Aborting"
+                                git --git-dir=(repo_path)/.git --work-tree=(repo_path) checkout -- "$target"
+                                return 1
+                            end
+                    end
+                end
+            end
+        else
+            ln -s "$target_path" "$install_path"
+        end
+    end
+end
+
+update_git; and install_symlinks
