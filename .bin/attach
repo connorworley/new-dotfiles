@@ -1,10 +1,12 @@
 #!/usr/bin/env fish
 
-if test "$SSH_AUTH_SOCK"
+if test -e "SSH_AUTH_SOCK"
     ln -sf "$SSH_AUTH_SOCK" ~/.ssh/ssh_auth_sock
 end
 
-if ! tmux2 -CC attach -t default
+if tmux2 has-session -t default
+    tmux2 -CC attach -t default
+else
     tmux2 -CC new -t default
 end
 
